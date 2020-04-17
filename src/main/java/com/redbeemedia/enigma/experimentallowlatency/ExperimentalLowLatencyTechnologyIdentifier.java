@@ -4,6 +4,8 @@ import com.google.android.exoplayer2.ExoPlayerLibraryInfo;
 import com.redbeemedia.enigma.core.player.IPlaybackTechnologyIdentifier;
 
 /*package-protected*/ class ExperimentalLowLatencyTechnologyIdentifier implements IPlaybackTechnologyIdentifier {
+    private static final boolean compileCheck_usingCorrectExoVersion = ExoPlayerLibraryInfo.EXPERIMENTAL_ULL;
+
     private static final ExperimentalLowLatencyTechnologyIdentifier instance = new ExperimentalLowLatencyTechnologyIdentifier();
 
     @Override

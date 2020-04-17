@@ -4,6 +4,9 @@ import android.media.DeniedByServerException;
 import android.media.MediaCryptoException;
 import android.media.MediaDrmException;
 import android.media.NotProvisionedException;
+import android.os.PersistableBundle;
+
+import androidx.annotation.Nullable;
 
 import com.google.android.exoplayer2.drm.DrmInitData;
 import com.google.android.exoplayer2.drm.ExoMediaCrypto;
@@ -14,17 +17,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import androidx.annotation.Nullable;
-
 /*package-protected*/ class ReusableExoMediaDrm<T extends ExoMediaCrypto> implements ExoMediaDrm<T> {
     private final ExoMediaDrmFactory<T> factory;
     private ExoMediaDrm<T> wrapped;
+    private int referenceCount = 1;
 
     public ReusableExoMediaDrm(ExoMediaDrmFactory<T> factory) throws UnsupportedDrmException {
         this.factory = factory;
         this.wrapped = factory.create();
     }
-
 
 
     @Override
@@ -75,15 +76,19 @@ import androidx.annotation.Nullable;
     @Override
     public void release() {
         synchronized (this) {
-            if(wrapped != null) {
-                wrapped.release();
+            referenceCount--;
+            if(referenceCount < 1) {
+                if(wrapped != null) {
+                    wrapped.release();
+                }
+                wrapped = null;
             }
-            wrapped = null;
         }
     }
 
     public synchronized void revive() {
         if(wrapped == null) {
+            acquire();
             try {
                 wrapped = factory.create();
             } catch (UnsupportedDrmException e) {
@@ -95,6 +100,12 @@ import androidx.annotation.Nullable;
     @Override
     public void restoreKeys(byte[] sessionId, byte[] keySetId) {
         wrapped.restoreKeys(sessionId, keySetId);
+    }
+
+    @Nullable
+    @Override
+    public PersistableBundle getMetrics() {
+        return wrapped.getMetrics();
     }
 
     @Override
@@ -122,7 +133,18 @@ import androidx.annotation.Nullable;
         return wrapped.createMediaCrypto(initData);
     }
 
+    @Nullable
+    @Override
+    public Class<T> getExoMediaCryptoType() {
+        return wrapped.getExoMediaCryptoType();
+    }
+
     public interface ExoMediaDrmFactory<S extends ExoMediaCrypto> {
         ExoMediaDrm<S> create() throws UnsupportedDrmException;
+    }
+
+    @Override
+    public synchronized void acquire() {
+        referenceCount++;
     }
 }
