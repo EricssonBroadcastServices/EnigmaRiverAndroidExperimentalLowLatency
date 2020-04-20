@@ -12,6 +12,7 @@ import android.widget.TextView;
 
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
+import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.ExoPlayerFactory;
 import com.google.android.exoplayer2.IllegalSeekPositionException;
 import com.google.android.exoplayer2.Player;
@@ -65,6 +66,8 @@ import com.redbeemedia.enigma.experimentallowlatency.ui.ExoButton;
 import com.redbeemedia.enigma.experimentallowlatency.ui.TimeBarUtil;
 import com.redbeemedia.enigma.experimentallowlatency.util.LoadRequestParameterApplier;
 import com.redbeemedia.enigma.experimentallowlatency.util.MediaSourceFactoryConfigurator;
+import com.redbeemedia.playersapplog.GlobalAppLogger;
+import com.redbeemedia.playersapplog.log.StackTraceLog;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -118,6 +121,12 @@ public class ExoPlayerTech implements IPlayerImplementation {
                 drmSessionManager = null;
             }
             this.player = ExoPlayerFactory.newSimpleInstance(context, rendersFactory, trackSelector, drmSessionManager);
+            this.player.addListener(new Player.EventListener() {
+                @Override
+                public void onPlayerError(ExoPlaybackException error) {
+                    GlobalAppLogger.get().sendLog(new StackTraceLog("playback_error", error));
+                }
+            });
         } catch (UnsupportedDrmException e) {
             throw new RuntimeException(e);
         }
