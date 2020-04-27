@@ -60,6 +60,7 @@ import com.redbeemedia.enigma.core.virtualui.IVirtualControls;
 import com.redbeemedia.enigma.core.virtualui.IVirtualControlsSettings;
 import com.redbeemedia.enigma.core.virtualui.VirtualControlsSettings;
 import com.redbeemedia.enigma.core.virtualui.impl.VirtualControls;
+import com.redbeemedia.enigma.experimentallowlatency.logging.ExoPlayerExceptionLog;
 import com.redbeemedia.enigma.experimentallowlatency.tracks.ExoAudioTrack;
 import com.redbeemedia.enigma.experimentallowlatency.tracks.ExoSubtitleTrack;
 import com.redbeemedia.enigma.experimentallowlatency.ui.ExoButton;
@@ -124,7 +125,8 @@ public class ExoPlayerTech implements IPlayerImplementation {
             this.player.addListener(new Player.EventListener() {
                 @Override
                 public void onPlayerError(ExoPlaybackException error) {
-                    GlobalAppLogger.get().sendLog(new StackTraceLog("playback_error", error));
+                    Log.d("MATTE_DEBUG", "Sending log as name 'playback_error'....");
+                    GlobalAppLogger.get().sendLog(new ExoPlayerExceptionLog(error));
                 }
             });
         } catch (UnsupportedDrmException e) {
