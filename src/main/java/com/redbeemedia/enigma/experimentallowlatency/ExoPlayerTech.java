@@ -13,12 +13,14 @@ import android.widget.TextView;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
 import com.google.android.exoplayer2.ExoPlaybackException;
-import com.google.android.exoplayer2.ExoPlayerFactory;
 import com.google.android.exoplayer2.IllegalSeekPositionException;
 import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.drm.DefaultDrmSessionManager;
+import com.google.android.exoplayer2.drm.DrmSessionManager;
+import com.google.android.exoplayer2.drm.DummyExoMediaDrm;
+import com.google.android.exoplayer2.drm.ExoMediaCrypto;
 import com.google.android.exoplayer2.drm.ExoMediaDrm;
 import com.google.android.exoplayer2.drm.FrameworkMediaCrypto;
 import com.google.android.exoplayer2.drm.FrameworkMediaDrm;
@@ -68,7 +70,6 @@ import com.redbeemedia.enigma.experimentallowlatency.ui.TimeBarUtil;
 import com.redbeemedia.enigma.experimentallowlatency.util.LoadRequestParameterApplier;
 import com.redbeemedia.enigma.experimentallowlatency.util.MediaSourceFactoryConfigurator;
 import com.redbeemedia.playersapplog.GlobalAppLogger;
-import com.redbeemedia.playersapplog.log.StackTraceLog;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -80,7 +81,8 @@ public class ExoPlayerTech implements IPlayerImplementation {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final DataSource.Factory mediaDataSourceFactory;
-    private final ReusableExoMediaDrm<FrameworkMediaCrypto> mediaDrm;
+    private final DefaultDrmSessionManager<ExoMediaCrypto> drmSessionManager;
+    private final ExoMediaDrm<? extends ExoMediaCrypto> widewineDrm;
     private SimpleExoPlayer player;
     private DefaultTrackSelector trackSelector;
     private PlayerView playerView = null;
@@ -107,21 +109,14 @@ public class ExoPlayerTech implements IPlayerImplementation {
         DefaultRenderersFactory rendersFactory =
             new DefaultRenderersFactory(context, DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER);
         try {
-            DefaultDrmSessionManager<FrameworkMediaCrypto> drmSessionManager;
             if(supportedFormats.isWidewineSupported()) {
-                this.mediaDrm = new ReusableExoMediaDrm<FrameworkMediaCrypto>(new ReusableExoMediaDrm.ExoMediaDrmFactory<FrameworkMediaCrypto>() {
-                    @Override
-                    public ExoMediaDrm<FrameworkMediaCrypto> create() throws UnsupportedDrmException {
-                        return FrameworkMediaDrm.newInstance(WIDEVINE_UUID);
-                    }
-                });
-                //TODO check if mediaDrm needs to be released or if it is released when the player is released.
-                drmSessionManager = new DefaultDrmSessionManager<>(WIDEVINE_UUID, mediaDrm, mediaDrmCallback, null, false);
+                this.widewineDrm = FrameworkMediaDrm.newInstance(WIDEVINE_UUID);
+                this.drmSessionManager = new DefaultDrmSessionManager.Builder().setUuidAndExoMediaDrmProvider(WIDEVINE_UUID, new ExoMediaDrm.AppManagedProvider<>(widewineDrm)).build(mediaDrmCallback);
             } else {
-                this.mediaDrm = null;
-                drmSessionManager = null;
+                this.widewineDrm = new DummyExoMediaDrm<>();
+                this.drmSessionManager = null;
             }
-            this.player = ExoPlayerFactory.newSimpleInstance(context, rendersFactory, trackSelector, drmSessionManager);
+            this.player = new SimpleExoPlayer.Builder(context, rendersFactory).setTrackSelector(trackSelector).build();
             this.player.addListener(new Player.EventListener() {
                 @Override
                 public void onPlayerError(ExoPlaybackException error) {
@@ -162,15 +157,12 @@ public class ExoPlayerTech implements IPlayerImplementation {
             };
             final MediaSource mediaSource;
             try {
-                mediaSource = buildMediaSource(Uri.parse(url), new MediaSourceFactoryConfigurator(loadRequest));
+                mediaSource = buildMediaSource(Uri.parse(url), new MediaSourceFactoryConfigurator(loadRequest, drmSessionManager));
             } catch (RuntimeException e) {
                 resultHandler.onError(new UnexpectedError(e));
                 return;
             }
             AndroidThreadUtil.runOnUiThread(() -> {
-                if(mediaDrm != null) {
-                    mediaDrm.revive();
-                }
                 parameterApplier.applyTo(trackSelector);
                 player.prepare(mediaSource, false, false);
                 resultHandler.onDone();
@@ -182,7 +174,7 @@ public class ExoPlayerTech implements IPlayerImplementation {
             AndroidThreadUtil.runOnUiThread(() -> {
                 player.setPlayWhenReady(true);
                 resultHandler.onDone();
-            });;
+            });
         }
 
         @Override
@@ -363,9 +355,7 @@ public class ExoPlayerTech implements IPlayerImplementation {
     @Override
     public void release() {
         this.player.release();
-        if(this.mediaDrm != null) {
-            this.mediaDrm.release();
-        }
+        this.widewineDrm.release();
     }
 
     protected Set<EnigmaMediaFormat> initSupportedFormats(Set<EnigmaMediaFormat> supportedFormats) {
