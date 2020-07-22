@@ -18,11 +18,9 @@ import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.drm.DefaultDrmSessionManager;
-import com.google.android.exoplayer2.drm.DrmSessionManager;
 import com.google.android.exoplayer2.drm.DummyExoMediaDrm;
 import com.google.android.exoplayer2.drm.ExoMediaCrypto;
 import com.google.android.exoplayer2.drm.ExoMediaDrm;
-import com.google.android.exoplayer2.drm.FrameworkMediaCrypto;
 import com.google.android.exoplayer2.drm.FrameworkMediaDrm;
 import com.google.android.exoplayer2.drm.UnsupportedDrmException;
 import com.google.android.exoplayer2.source.ExtractorMediaSource;
@@ -148,7 +146,7 @@ public class ExoPlayerTech implements IPlayerImplementation {
     private class Controls implements IPlayerImplementationControls {
         @Override
         public void load(ILoadRequest loadRequest, IPlayerImplementationControlResultHandler resultHandler) {
-            String url = loadRequest.getUrl();
+            String url = ((IStreamLoadRequest) loadRequest).getUrl();
             final LoadRequestParameterApplier parameterApplier = new LoadRequestParameterApplier(loadRequest) {
                 @Override
                 protected void onException(Exception e) {
