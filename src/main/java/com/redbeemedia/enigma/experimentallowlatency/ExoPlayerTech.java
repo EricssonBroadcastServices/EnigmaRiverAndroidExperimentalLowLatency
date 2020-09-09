@@ -17,14 +17,13 @@ import com.google.android.exoplayer2.IllegalSeekPositionException;
 import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.Timeline;
-import com.google.android.exoplayer2.drm.DefaultDrmSessionManager;
 import com.google.android.exoplayer2.drm.DummyExoMediaDrm;
-import com.google.android.exoplayer2.drm.ExoMediaCrypto;
 import com.google.android.exoplayer2.drm.ExoMediaDrm;
+import com.google.android.exoplayer2.drm.FrameworkMediaCrypto;
 import com.google.android.exoplayer2.drm.FrameworkMediaDrm;
 import com.google.android.exoplayer2.drm.UnsupportedDrmException;
-import com.google.android.exoplayer2.source.ExtractorMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.source.ProgressiveMediaSource;
 import com.google.android.exoplayer2.source.dash.DashMediaSource;
 import com.google.android.exoplayer2.source.hls.HlsMediaSource;
 import com.google.android.exoplayer2.source.smoothstreaming.SsMediaSource;
@@ -60,6 +59,7 @@ import com.redbeemedia.enigma.core.virtualui.IVirtualControls;
 import com.redbeemedia.enigma.core.virtualui.IVirtualControlsSettings;
 import com.redbeemedia.enigma.core.virtualui.VirtualControlsSettings;
 import com.redbeemedia.enigma.core.virtualui.impl.VirtualControls;
+import com.redbeemedia.enigma.experimentallowlatency.drift.IDriftListener;
 import com.redbeemedia.enigma.experimentallowlatency.logging.ExoPlayerExceptionLog;
 import com.redbeemedia.enigma.experimentallowlatency.tracks.ExoAudioTrack;
 import com.redbeemedia.enigma.experimentallowlatency.tracks.ExoSubtitleTrack;
@@ -79,12 +79,12 @@ public class ExoPlayerTech implements IPlayerImplementation {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final DataSource.Factory mediaDataSourceFactory;
-    private final DefaultDrmSessionManager<ExoMediaCrypto> drmSessionManager;
-    private final ExoMediaDrm<? extends ExoMediaCrypto> widewineDrm;
+    private final ExoMediaDrm<FrameworkMediaCrypto> mediaDrm;
     private SimpleExoPlayer player;
     private DefaultTrackSelector trackSelector;
     private PlayerView playerView = null;
     private boolean hideControllerCalled = false;
+    private final EnigmaDrmSessionManager<FrameworkMediaCrypto> drmSessionManager;
     private MediaDrmFromProviderCallback mediaDrmCallback;
     private MediaFormatSpecification supportedFormats = new MediaFormatSpecification();
     private TimelinePositionFormat timestampFormat = TimelinePositionFormat.newFormat(new ExoPlayerDurationFormat(), "HH:mm");
@@ -93,6 +93,8 @@ public class ExoPlayerTech implements IPlayerImplementation {
     private final IActivation playerViewControlsReady = new Activation();
     private TextView positionView;
     private TextView durationView;
+
+    private DriftMeter driftMeter;
 
     public ExoPlayerTech(Context context, String appName) {
         this.mediaDataSourceFactory = new DefaultDataSourceFactory(context, Util.getUserAgent(context, appName));
@@ -108,12 +110,13 @@ public class ExoPlayerTech implements IPlayerImplementation {
             new DefaultRenderersFactory(context, DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER);
         try {
             if(supportedFormats.isWidewineSupported()) {
-                this.widewineDrm = FrameworkMediaDrm.newInstance(WIDEVINE_UUID);
-                this.drmSessionManager = new DefaultDrmSessionManager.Builder().setUuidAndExoMediaDrmProvider(WIDEVINE_UUID, new ExoMediaDrm.AppManagedProvider<>(widewineDrm)).build(mediaDrmCallback);
+                this.mediaDrm = FrameworkMediaDrm.newInstance(WIDEVINE_UUID);
+                drmSessionManager = new EnigmaDrmSessionManager<>(mediaDrm, mediaDrmCallback);
             } else {
-                this.widewineDrm = new DummyExoMediaDrm<>();
-                this.drmSessionManager = null;
+                this.mediaDrm = new DummyExoMediaDrm<>();
+                drmSessionManager = null;
             }
+
             this.player = new SimpleExoPlayer.Builder(context, rendersFactory).setTrackSelector(trackSelector).build();
             this.player.addListener(new Player.EventListener() {
                 @Override
@@ -122,6 +125,8 @@ public class ExoPlayerTech implements IPlayerImplementation {
                     GlobalAppLogger.get().sendLog(new ExoPlayerExceptionLog(error));
                 }
             });
+
+            this.driftMeter = new DriftMeter(player, handler);
         } catch (UnsupportedDrmException e) {
             throw new RuntimeException(e);
         }
@@ -137,6 +142,7 @@ public class ExoPlayerTech implements IPlayerImplementation {
         environment.setControls(new Controls());
         environment.setInternals(new Internals(timelinePositionFactory));
         environment.addEnigmaPlayerReadyListener(enigmaPlayer -> ExoPlayerTech.this.onReady(enigmaPlayer));
+        environment.addEnigmaPlayerReadyListener(driftMeter);
     }
 
     public void setTimestampFormat(TimelinePositionFormat timestampFormat) {
@@ -146,7 +152,7 @@ public class ExoPlayerTech implements IPlayerImplementation {
     private class Controls implements IPlayerImplementationControls {
         @Override
         public void load(ILoadRequest loadRequest, IPlayerImplementationControlResultHandler resultHandler) {
-            String url = ((IStreamLoadRequest) loadRequest).getUrl();
+            drmSessionManager.reset();
             final LoadRequestParameterApplier parameterApplier = new LoadRequestParameterApplier(loadRequest) {
                 @Override
                 protected void onException(Exception e) {
@@ -155,14 +161,22 @@ public class ExoPlayerTech implements IPlayerImplementation {
             };
             final MediaSource mediaSource;
             try {
-                mediaSource = buildMediaSource(Uri.parse(url), new MediaSourceFactoryConfigurator(loadRequest, drmSessionManager));
+                mediaSource = buildMediaSource(loadRequest);
+            } catch(ControlRequestResolutionException earlyResolution) {
+                earlyResolution.apply(resultHandler);
+                return;
             } catch (RuntimeException e) {
                 resultHandler.onError(new UnexpectedError(e));
                 return;
             }
             AndroidThreadUtil.runOnUiThread(() -> {
-                parameterApplier.applyTo(trackSelector);
-                player.prepare(mediaSource, false, false);
+                try {
+                    parameterApplier.applyTo(trackSelector);
+                    player.prepare(mediaSource, true, true);
+                } catch (Exception e) {
+                    resultHandler.onError(new UnexpectedError(e));
+                    return;
+                }
                 resultHandler.onDone();
             });
         }
@@ -203,18 +217,18 @@ public class ExoPlayerTech implements IPlayerImplementation {
                     }
                 });
             } else if (seekPosition == ISeekPosition.LIVE_EDGE) {
-                if(!player.isCurrentWindowDynamic()) {
-                    resultHandler.onRejected(new ExoRejectReason(IControlResultHandler.RejectReasonType.INAPPLICABLE_FOR_CURRENT_STREAM, "Video is not dynamic"));
-                } else {
-                    AndroidThreadUtil.runOnUiThread(() -> {
+                AndroidThreadUtil.runOnUiThread(() -> {
+                    if(!player.isCurrentWindowDynamic()) {
+                        resultHandler.onRejected(new ExoRejectReason(IControlResultHandler.RejectReasonType.INAPPLICABLE_FOR_CURRENT_STREAM, "Video is not dynamic"));
+                    } else {
                         try {
                             player.seekToDefaultPosition();
                             resultHandler.onDone();
                         } catch (IllegalSeekPositionException e) {
                             resultHandler.onError(new IllegalSeekPositionError(e));
                         }
-                    });
-                }
+                    }
+                });
             } else if(seekPosition instanceof IPlayerImplementationControls.TimelineRelativePosition) {
                 long millis = ((TimelineRelativePosition) seekPosition).getMillis();
                 AndroidThreadUtil.runOnUiThread(() -> {
@@ -319,7 +333,8 @@ public class ExoPlayerTech implements IPlayerImplementation {
             try {
                 Timeline timeline = AndroidThreadUtil.getBlockingOnUiThread(() -> player.getCurrentTimeline());
                 if(timeline.getWindowCount() > 0) {
-                    long startMs = TimelineUtil.getStartMs(player, timeline, player.getCurrentWindowIndex());
+                    int currentWindowIndex = AndroidThreadUtil.getBlockingOnUiThread(() -> player.getCurrentWindowIndex());
+                    long startMs = TimelineUtil.getStartMs(player, timeline, currentWindowIndex);
                     return timelinePositionFactory.newPosition(startMs);
                 } else {
                     return null;
@@ -334,7 +349,8 @@ public class ExoPlayerTech implements IPlayerImplementation {
             try {
                 Timeline timeline = AndroidThreadUtil.getBlockingOnUiThread(() -> player.getCurrentTimeline());
                 if(timeline.getWindowCount() > 0) {
-                    long duration = TimelineUtil.getDurationMs(player, timeline, player.getCurrentWindowIndex());
+                    int currentWindowIndex = AndroidThreadUtil.getBlockingOnUiThread(() -> player.getCurrentWindowIndex());
+                    long duration = TimelineUtil.getDurationMs(player, timeline, currentWindowIndex);
                     return timelinePositionFactory.newPosition(duration);
                 } else {
                     return null;
@@ -352,8 +368,9 @@ public class ExoPlayerTech implements IPlayerImplementation {
 
     @Override
     public void release() {
+        this.driftMeter.release();
         this.player.release();
-        this.widewineDrm.release();
+        this.mediaDrm.release();
     }
 
     protected Set<EnigmaMediaFormat> initSupportedFormats(Set<EnigmaMediaFormat> supportedFormats) {
@@ -365,6 +382,8 @@ public class ExoPlayerTech implements IPlayerImplementation {
         } else {
             Log.d(TAG, "Widewine does not seem to be supported on this device");
         }
+
+        supportedFormats.add(new EnigmaMediaFormat(EnigmaMediaFormat.StreamFormat.HLS, EnigmaMediaFormat.DrmTechnology.NONE));
         
         return supportedFormats;
     }
@@ -502,6 +521,10 @@ public class ExoPlayerTech implements IPlayerImplementation {
         }
     }
 
+    public boolean addDriftListener(IDriftListener driftListener) {
+        return driftMeter.addDriftListener(driftListener);
+    }
+
     private static void hideControllerOnPlayerView(PlayerView playerView) {
         playerView.hideController();
         playerView.setControllerVisibilityListener(new PlayerControlView.VisibilityListener() {
@@ -512,6 +535,35 @@ public class ExoPlayerTech implements IPlayerImplementation {
                 }
             }
         });
+    }
+
+    private MediaSource buildMediaSource(IPlayerImplementationControls.ILoadRequest loadRequest) throws ControlRequestResolutionException {
+        if(loadRequest instanceof IPlayerImplementationControls.IStreamLoadRequest) {
+            IPlayerImplementationControls.IStreamLoadRequest typedLR = (IPlayerImplementationControls.IStreamLoadRequest) loadRequest;
+            return buildMediaSource(Uri.parse(typedLR.getUrl()), new MediaSourceFactoryConfigurator(loadRequest, drmSessionManager));
+        } else if(loadRequest instanceof IPlayerImplementationControls.IDownloadedLoadRequest) {
+            IPlayerImplementationControls.IDownloadedLoadRequest typedLR = (IPlayerImplementationControls.IDownloadedLoadRequest) loadRequest;
+            Object downloadData = typedLR.getDownloadData();
+            if(!(downloadData instanceof IMediaSourceFactory)) {
+                throw ControlRequestResolutionException.onRejected(new ExoRejectReason(
+                        IControlResultHandler.RejectReasonType.ILLEGAL_ARGUMENT,
+                        "Unrecognized downloadData"));
+            }
+            IMediaSourceFactory mediaSourceFactory = (IMediaSourceFactory) downloadData;
+
+            if(downloadData instanceof IOfflineDrmKeySource) {
+                byte[] drmKeys = ((IOfflineDrmKeySource) downloadData).getDrmKeys();
+                if(drmKeys != null) {
+                    drmSessionManager.useOfflineManager(drmKeys);
+                }
+            }
+
+            return mediaSourceFactory.createMediaSource(new MediaSourceFactoryConfigurator(loadRequest, drmSessionManager));
+        } else {
+            throw ControlRequestResolutionException.onRejected(new ExoRejectReason(
+                    IControlResultHandler.RejectReasonType.ILLEGAL_ARGUMENT,
+                    "LoadRequest type not supported by this player implementation"));
+        }
     }
 
     private MediaSource buildMediaSource(Uri uri, MediaSourceFactoryConfigurator configurator) {
@@ -527,7 +579,7 @@ public class ExoPlayerTech implements IPlayerImplementation {
                 return configurator.configure(new HlsMediaSource.Factory(mediaDataSourceFactory))
                     .createMediaSource(uri);
             case C.TYPE_OTHER:
-                return configurator.configure(new ExtractorMediaSource.Factory(mediaDataSourceFactory))
+                return configurator.configure(new ProgressiveMediaSource.Factory(mediaDataSourceFactory))
                     .createMediaSource(uri);
             default:
                 throw new IllegalStateException("Unsupported type: " + type);

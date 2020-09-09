@@ -2,7 +2,7 @@ package com.redbeemedia.enigma.experimentallowlatency.util;
 
 import com.google.android.exoplayer2.drm.DrmSessionManager;
 import com.google.android.exoplayer2.drm.ExoMediaCrypto;
-import com.google.android.exoplayer2.source.ExtractorMediaSource;
+import com.google.android.exoplayer2.source.ProgressiveMediaSource;
 import com.google.android.exoplayer2.source.dash.DashMediaSource;
 import com.google.android.exoplayer2.source.hls.HlsMediaSource;
 import com.google.android.exoplayer2.source.smoothstreaming.SsMediaSource;
@@ -14,9 +14,9 @@ import com.redbeemedia.enigma.core.time.Duration;
  */
 public class MediaSourceFactoryConfigurator {
     private final IPlayerImplementationControls.ILoadRequest loadRequest;
-    private final DrmSessionManager<ExoMediaCrypto> drmSessionManager;
+    private final DrmSessionManager<? extends ExoMediaCrypto> drmSessionManager;
 
-    public MediaSourceFactoryConfigurator(IPlayerImplementationControls.ILoadRequest loadRequest, DrmSessionManager<ExoMediaCrypto> drmSessionManager) {
+    public MediaSourceFactoryConfigurator(IPlayerImplementationControls.ILoadRequest loadRequest, DrmSessionManager<? extends ExoMediaCrypto> drmSessionManager) {
         this.loadRequest = loadRequest;
         this.drmSessionManager = drmSessionManager;
     }
@@ -29,7 +29,7 @@ public class MediaSourceFactoryConfigurator {
             }
 
             @Override
-            public void setDrmSessionManager(DrmSessionManager<ExoMediaCrypto> drmSessionManager) {
+            public void setDrmSessionManager(DrmSessionManager<? extends ExoMediaCrypto> drmSessionManager) {
                 factory.setDrmSessionManager(drmSessionManager);
             }
         });
@@ -44,7 +44,7 @@ public class MediaSourceFactoryConfigurator {
             }
 
             @Override
-            public void setDrmSessionManager(DrmSessionManager<ExoMediaCrypto> drmSessionManager) {
+            public void setDrmSessionManager(DrmSessionManager<? extends ExoMediaCrypto> drmSessionManager) {
                 factory.setDrmSessionManager(drmSessionManager);
             }
         });
@@ -60,14 +60,14 @@ public class MediaSourceFactoryConfigurator {
             }
 
             @Override
-            public void setDrmSessionManager(DrmSessionManager<ExoMediaCrypto> drmSessionManager) {
+            public void setDrmSessionManager(DrmSessionManager<? extends ExoMediaCrypto> drmSessionManager) {
                 factory.setDrmSessionManager(drmSessionManager);
             }
         });
         return factory;
     }
 
-    public ExtractorMediaSource.Factory configure(ExtractorMediaSource.Factory factory) {
+    public ProgressiveMediaSource.Factory configure(ProgressiveMediaSource.Factory factory) {
         configureInternal(new IMediaSourceFactoryAdapter() {
             @Override
             public void setLiveDelay(Duration liveDelay) {
@@ -75,8 +75,8 @@ public class MediaSourceFactoryConfigurator {
             }
 
             @Override
-            public void setDrmSessionManager(DrmSessionManager<ExoMediaCrypto> drmSessionManager) {
-                // Not supported
+            public void setDrmSessionManager(DrmSessionManager<? extends ExoMediaCrypto> drmSessionManager) {
+                factory.setDrmSessionManager(drmSessionManager);
             }
         });
         return factory;
@@ -94,6 +94,6 @@ public class MediaSourceFactoryConfigurator {
 
     private interface IMediaSourceFactoryAdapter {
         void setLiveDelay(Duration liveDelay);
-        void setDrmSessionManager(DrmSessionManager<ExoMediaCrypto> drmSessionManager);
+        void setDrmSessionManager(DrmSessionManager<? extends ExoMediaCrypto> drmSessionManager);
     }
 }
