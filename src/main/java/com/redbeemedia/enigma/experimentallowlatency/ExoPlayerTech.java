@@ -67,7 +67,6 @@ import com.redbeemedia.enigma.experimentallowlatency.ui.ExoButton;
 import com.redbeemedia.enigma.experimentallowlatency.ui.TimeBarUtil;
 import com.redbeemedia.enigma.experimentallowlatency.util.LoadRequestParameterApplier;
 import com.redbeemedia.enigma.experimentallowlatency.util.MediaSourceFactoryConfigurator;
-import com.redbeemedia.playersapplog.GlobalAppLogger;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -118,13 +117,15 @@ public class ExoPlayerTech implements IPlayerImplementation {
             }
 
             this.player = new SimpleExoPlayer.Builder(context, rendersFactory).setTrackSelector(trackSelector).build();
-            this.player.addListener(new Player.EventListener() {
-                @Override
-                public void onPlayerError(ExoPlaybackException error) {
-                    Log.d("MATTE_DEBUG", "Sending log as name 'playback_error'....");
-                    GlobalAppLogger.get().sendLog(new ExoPlayerExceptionLog(error));
-                }
-            });
+            // TODO crash casued by GlobalAppLogger.get().sendLog(new ExoPlayerExceptionLog(error));
+            //  I am_crash: [8224,0,com.redbeemedia.enigma.singleAssetApp,550026822,java.lang.NullPointerException,Attempt to invoke interface method 'void com.redbeemedia.playersapplog.IAppLogger.sendLog(com.redbeemedia.playersapplog.log.ILog)' on a null object reference,ExoPlayerTech.java,125]
+            // this.player.addListener(new Player.EventListener() {
+            //     @Override
+            //     public void onPlayerError(ExoPlaybackException error) {
+            //         Log.d("MATTE_DEBUG", "Sending log as name 'playback_error'....");
+            //         GlobalAppLogger.get().sendLog(new ExoPlayerExceptionLog(error));
+            //     }
+            // });
 
             this.driftMeter = new DriftMeter(player, handler);
         } catch (UnsupportedDrmException e) {
