@@ -15,6 +15,7 @@ import com.redbeemedia.enigma.experimentallowlatency.error.ExoPlayerError;
 import com.redbeemedia.enigma.experimentallowlatency.tracks.ExoAudioTrack;
 import com.redbeemedia.enigma.experimentallowlatency.tracks.ExoSubtitleTrack;
 import com.redbeemedia.enigma.experimentallowlatency.tracks.ExoVideoTrack;
+import com.redbeemedia.enigma.core.util.AndroidThreadUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,6 +55,10 @@ import java.util.List;
             signalLoadedOnReady = true;
         }
         this.lastState = playbackState;
+    }
+
+    public void onLoadingNewMediaSource() {
+        AndroidThreadUtil.runOnUiThread(() -> signalLoadedOnReady = true);
     }
 
     @Override
