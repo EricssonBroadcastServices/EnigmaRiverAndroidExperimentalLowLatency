@@ -8,6 +8,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.TextView;
 
 import com.google.android.exoplayer2.C;
@@ -326,6 +327,7 @@ public class ExoPlayerTech implements IPlayerImplementation {
 
     private class Internals implements IPlayerImplementationInternals {
         private ITimelinePositionFactory timelinePositionFactory;
+        private final Timeline.Window reusableWindow = new Timeline.Window();
 
         public Internals(ITimelinePositionFactory timelinePositionFactory) {
             this.timelinePositionFactory = timelinePositionFactory;
@@ -361,6 +363,28 @@ public class ExoPlayerTech implements IPlayerImplementation {
                 return duration != C.TIME_UNSET ? timelinePositionFactory.newPosition(duration) : null;
             } catch (InterruptedException e) {
                 return null;
+            }
+        }
+
+        @Override
+        public ITimelinePosition getLivePosition() {
+            try {
+                return AndroidThreadUtil.getBlockingOnUiThread( () -> {
+                    Timeline timeline = player.getCurrentTimeline();
+                    if(timeline.getWindowCount() > 0) {
+                        int currentWindowIndex = player.getCurrentWindowIndex();
+                        long position;
+                        synchronized (reusableWindow) {
+                            timeline.getWindow(currentWindowIndex, reusableWindow);
+                            position = reusableWindow.getDefaultPositionMs();
+                        }
+                        return position == C.TIME_UNSET ? null : timelinePositionFactory.newPosition(position);
+                    } else {
+                        return null;
+                    }
+                });
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
         }
 
