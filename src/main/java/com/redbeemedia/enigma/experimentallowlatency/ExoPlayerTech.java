@@ -8,12 +8,10 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
 import android.widget.TextView;
 
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
-import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.IllegalSeekPositionException;
 import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.SimpleExoPlayer;
@@ -63,7 +61,6 @@ import com.redbeemedia.enigma.core.virtualui.IVirtualControlsSettings;
 import com.redbeemedia.enigma.core.virtualui.VirtualControlsSettings;
 import com.redbeemedia.enigma.core.virtualui.impl.VirtualControls;
 import com.redbeemedia.enigma.experimentallowlatency.drift.IDriftListener;
-import com.redbeemedia.enigma.experimentallowlatency.logging.ExoPlayerExceptionLog;
 import com.redbeemedia.enigma.experimentallowlatency.tracks.ExoAudioTrack;
 import com.redbeemedia.enigma.experimentallowlatency.tracks.ExoSubtitleTrack;
 import com.redbeemedia.enigma.experimentallowlatency.ui.ExoButton;
@@ -321,6 +318,21 @@ public class ExoPlayerTech implements IPlayerImplementation {
                     return;
                 }
                 resultHandler.onDone();
+            });
+        }
+
+        @Override
+        public void setMaxVideoTrackDimensions(int width, int height, IPlayerImplementationControlResultHandler controlResultHandler) {
+            AndroidThreadUtil.runOnUiThread(() -> {
+                try {
+                    DefaultTrackSelector.ParametersBuilder parametersBuilder = trackSelector.buildUponParameters();
+                    parametersBuilder.setMaxVideoSize(width, height);
+                    trackSelector.setParameters(parametersBuilder.build());
+                    controlResultHandler.onDone();
+                } catch (RuntimeException e){
+                    controlResultHandler.onError(new UnexpectedError(e));
+                    return;
+                }
             });
         }
     }
