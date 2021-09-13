@@ -413,6 +413,11 @@ public class ExoPlayerTech implements IPlayerImplementation {
         this.mediaDrm.release();
     }
 
+    @Override
+    public void updateTimeBar(long millis) {
+
+    }
+
     protected Set<EnigmaMediaFormat> initSupportedFormats(Set<EnigmaMediaFormat> supportedFormats) {
         supportedFormats.add(new EnigmaMediaFormat(EnigmaMediaFormat.StreamFormat.DASH, EnigmaMediaFormat.DrmTechnology.NONE));
 
