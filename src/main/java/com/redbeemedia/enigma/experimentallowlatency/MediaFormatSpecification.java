@@ -14,6 +14,11 @@ import java.util.Set;
         return supportedFormats.contains(enigmaMediaFormat);
     }
 
+    @Override
+    public Set<EnigmaMediaFormat> getSupportedFormats() {
+        return supportedFormats;
+    }
+
     public void add(EnigmaMediaFormat mediaFormat) {
         supportedFormats.add(mediaFormat);
     }
