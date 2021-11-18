@@ -11,12 +11,6 @@ public final class ExoAudioTrack extends AbstractExoTrack implements IAudioTrack
         super(language);
     }
 
-
-    @Override
-    public String getLanguageCode() {
-        return super.getLanguageCode();
-    }
-
     @Override
     public void applyTo(DefaultTrackSelector trackSelector) {
         DefaultTrackSelector.ParametersBuilder parametersBuilder = trackSelector.buildUponParameters();
@@ -28,5 +22,15 @@ public final class ExoAudioTrack extends AbstractExoTrack implements IAudioTrack
     @Override
     public boolean equals(@Nullable Object obj) {
         return obj instanceof ExoAudioTrack && super.equals(obj);
+    }
+
+    @Override
+    public String getLabel() {
+        return super.getLanguageCode();
+    }
+
+    @Override
+    public String getCode() {
+        return super.getLanguageCode();
     }
 }

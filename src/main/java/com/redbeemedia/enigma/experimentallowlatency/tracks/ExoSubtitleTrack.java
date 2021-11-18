@@ -11,12 +11,6 @@ public final class ExoSubtitleTrack extends AbstractExoTrack implements ISubtitl
         super(language);
     }
 
-
-    @Override
-    public String getLanguageCode() {
-        return super.getLanguageCode();
-    }
-
     @Override
     public void applyTo(DefaultTrackSelector trackSelector) {
         DefaultTrackSelector.ParametersBuilder parametersBuilder = trackSelector.buildUponParameters();
@@ -34,5 +28,15 @@ public final class ExoSubtitleTrack extends AbstractExoTrack implements ISubtitl
     @Override
     public boolean equals(@Nullable Object obj) {
         return obj instanceof ExoSubtitleTrack && super.equals(obj);
+    }
+
+    @Override
+    public String getLabel() {
+        return super.getLanguageCode();
+    }
+
+    @Override
+    public String getCode() {
+        return super.getLanguageCode();
     }
 }
