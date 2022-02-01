@@ -29,6 +29,7 @@ import com.google.android.exoplayer2.source.smoothstreaming.SsMediaSource;
 import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.ui.PlayerControlView;
+import com.google.android.exoplayer2.ui.PlayerNotificationManager;
 import com.google.android.exoplayer2.ui.PlayerView;
 import com.google.android.exoplayer2.ui.TimeBar;
 import com.google.android.exoplayer2.upstream.DataSource;
@@ -411,6 +412,11 @@ public class ExoPlayerTech implements IPlayerImplementation {
         this.driftMeter.release();
         this.player.release();
         this.mediaDrm.release();
+    }
+
+    @Override
+    public void setupPlayerNotificationManager(PlayerNotificationManager manager) {
+        manager.setPlayer(player);
     }
 
     @Override
