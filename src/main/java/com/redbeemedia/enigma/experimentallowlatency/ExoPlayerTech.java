@@ -56,6 +56,7 @@ import com.redbeemedia.enigma.core.subtitle.ISubtitleTrack;
 import com.redbeemedia.enigma.core.util.AndroidThreadUtil;
 import com.redbeemedia.enigma.core.util.OpenContainer;
 import com.redbeemedia.enigma.core.util.OpenContainerUtil;
+import com.redbeemedia.enigma.core.video.IVideoTrack;
 import com.redbeemedia.enigma.core.virtualui.IVirtualButton;
 import com.redbeemedia.enigma.core.virtualui.IVirtualControls;
 import com.redbeemedia.enigma.core.virtualui.IVirtualControlsSettings;
@@ -64,6 +65,7 @@ import com.redbeemedia.enigma.core.virtualui.impl.VirtualControls;
 import com.redbeemedia.enigma.experimentallowlatency.drift.IDriftListener;
 import com.redbeemedia.enigma.experimentallowlatency.tracks.ExoAudioTrack;
 import com.redbeemedia.enigma.experimentallowlatency.tracks.ExoSubtitleTrack;
+import com.redbeemedia.enigma.experimentallowlatency.tracks.ExoVideoTrack;
 import com.redbeemedia.enigma.experimentallowlatency.ui.ExoButton;
 import com.redbeemedia.enigma.experimentallowlatency.ui.TimeBarUtil;
 import com.redbeemedia.enigma.experimentallowlatency.util.LoadRequestParameterApplier;
@@ -306,6 +308,29 @@ public class ExoPlayerTech implements IPlayerImplementation {
                 return;
             }
             final ExoAudioTrack exoAudioTrack = (ExoAudioTrack) track;
+            AndroidThreadUtil.runOnUiThread(() -> {
+                try {
+                    if(exoAudioTrack != null) {
+                        exoAudioTrack.applyTo(trackSelector);
+                    } else {
+                        resultHandler.onRejected(new ExoRejectReason(IControlResultHandler.RejectReasonType.ILLEGAL_ARGUMENT, "track was null"));
+                        return;
+                    }
+                } catch (RuntimeException e) {
+                    resultHandler.onError(new UnexpectedError(e));
+                    return;
+                }
+                resultHandler.onDone();
+            });
+        }
+
+        @Override
+        public void setVideoTrack(IVideoTrack track, IPlayerImplementationControlResultHandler resultHandler) {
+            if(track != null && !(track instanceof ExoVideoTrack)) {
+                resultHandler.onRejected(new ExoRejectReason(IControlResultHandler.RejectReasonType.ILLEGAL_ARGUMENT, IAudioTrack.class.getSimpleName()+" must originate from ExoPlayer-integration"));
+                return;
+            }
+            final ExoVideoTrack exoAudioTrack = (ExoVideoTrack) track;
             AndroidThreadUtil.runOnUiThread(() -> {
                 try {
                     if(exoAudioTrack != null) {
