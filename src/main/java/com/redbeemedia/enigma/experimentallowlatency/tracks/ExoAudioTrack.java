@@ -33,4 +33,9 @@ public final class ExoAudioTrack extends AbstractExoTrack implements IAudioTrack
     public String getCode() {
         return super.getLanguageCode();
     }
+
+    @Override
+    public String getTrackId() {
+        return null;
+    }
 }

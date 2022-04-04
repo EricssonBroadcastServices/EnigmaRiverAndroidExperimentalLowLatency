@@ -39,4 +39,9 @@ public final class ExoSubtitleTrack extends AbstractExoTrack implements ISubtitl
     public String getCode() {
         return super.getLanguageCode();
     }
+
+    @Override
+    public String getTrackId() {
+        return null;
+    }
 }

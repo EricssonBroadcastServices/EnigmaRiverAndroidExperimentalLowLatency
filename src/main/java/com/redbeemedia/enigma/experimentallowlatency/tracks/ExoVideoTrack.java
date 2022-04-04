@@ -70,4 +70,9 @@ public class ExoVideoTrack extends AbstractExoTrack implements IVideoTrack {
             return false;
         }
     }
+
+    @Override
+    public String getTrackId() {
+        return null;
+    }
 }
