@@ -461,6 +461,11 @@ public class ExoPlayerTech implements IPlayerImplementation {
     }
 
     @Override
+    public Player getInternalPlayer() {
+        return player;
+    }
+
+    @Override
     public SubtitleView getPlayerSubtitleView() {
         return playerView.getSubtitleView();
     }
