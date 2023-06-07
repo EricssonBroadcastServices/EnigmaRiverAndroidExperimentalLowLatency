@@ -74,7 +74,9 @@ import com.redbeemedia.enigma.experimentallowlatency.ui.TimeBarUtil;
 import com.redbeemedia.enigma.experimentallowlatency.util.LoadRequestParameterApplier;
 import com.redbeemedia.enigma.experimentallowlatency.util.MediaSourceFactoryConfigurator;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -363,6 +365,11 @@ public class ExoPlayerTech implements IPlayerImplementation {
                     return;
                 }
             });
+        }
+
+        @Override
+        public Map<String, String> getDrmKeyStatusMap() {
+            return new HashMap<>();
         }
     }
 
