@@ -1,12 +1,12 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 31
+    compileSdkVersion 34
 
 
     defaultConfig {
         minSdkVersion 21
-        targetSdkVersion 31
+        targetSdkVersion 34
         versionCode 1
         versionName "1.0"
 
@@ -40,13 +40,13 @@ dependencies {
     if(findProject(':core') != null) {
         implementation project(":core")
     } else {
-        implementation "com.github.EricssonBroadcastServices.EnigmaRiverAndroid:core:r3.7.5-BETA-3"
+        implementation "com.github.EricssonBroadcastServices.EnigmaRiverAndroid:core:r3.7.5-BETA-4"
     }
     api "com.github.EricssonBroadcastServices.ExoPlayer:library-core:$exoplayer_version"
     api "com.github.EricssonBroadcastServices.ExoPlayer:library-dash:$exoplayer_version"
     api "com.github.EricssonBroadcastServices.ExoPlayer:library-hls:$exoplayer_version"
     api "com.github.EricssonBroadcastServices.ExoPlayer:library-ui:$exoplayer_version"
-    implementation 'com.google.android.exoplayer:extension-mediasession:2.17.0'
+    api 'com.github.EricssonBroadcastServices.ExoPlayer:extension-mediasession:2.19.1'
     api "com.github.EricssonBroadcastServices.ExoPlayer:library-smoothstreaming:$exoplayer_version"
     implementation 'androidx.annotation:annotation:1.0.2'
 
