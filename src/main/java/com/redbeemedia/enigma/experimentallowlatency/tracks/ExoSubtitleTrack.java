@@ -41,6 +41,11 @@ public final class ExoSubtitleTrack extends AbstractExoTrack implements ISubtitl
     }
 
     @Override
+    public boolean isForcedSubtitle() {
+        return false;
+    }
+
+    @Override
     public String getTrackId() {
         return null;
     }
