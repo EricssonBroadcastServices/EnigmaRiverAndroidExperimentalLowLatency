@@ -449,12 +449,10 @@ public class ExoPlayerTech implements IPlayerImplementation {
         this.mediaDrm.release();
     }
 
-    @Override
     public void setupPlayerNotificationManager(PlayerNotificationManager manager) {
         manager.setPlayer(player);
     }
 
-    @Override
     public MediaSessionCompat createMediaSession(Context applicationContext) {
         MediaSessionCompat mediaSession = new MediaSessionCompat(applicationContext, applicationContext.getPackageName());
         MediaSessionConnector mediaSessionConnector = new MediaSessionConnector(mediaSession);
@@ -467,12 +465,10 @@ public class ExoPlayerTech implements IPlayerImplementation {
 
     }
 
-    @Override
     public Player getInternalPlayer() {
         return player;
     }
 
-    @Override
     public SubtitleView getPlayerSubtitleView() {
         return playerView.getSubtitleView();
     }
